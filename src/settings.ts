@@ -1,38 +1,64 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import MyPlugin from './main';
 
-export interface MyPluginSettings {
-	mySetting: string;
+import CopyeditorPlugin from './main';
+
+export interface CopyeditorPluginSettings {
+  mySetting: string;
 }
 
-export const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default',
+export const DEFAULT_SETTINGS: CopyeditorPluginSettings = {
+  mySetting: 'default',
 };
 
-export class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+interface SettingDefinition {
+  control: {
+    key: keyof CopyeditorPluginSettings;
+    placeholder: string;
+    type: 'text';
+  };
+  description: string;
+  name: string;
+}
 
-	constructor(app: App, plugin: MyPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
+export class SomeSettingTab extends PluginSettingTab {
+  private readonly plugin: CopyeditorPlugin;
 
-	display(): void {
-		const { containerEl } = this;
+  constructor(app: App, plugin: CopyeditorPlugin) {
+    super(app, plugin);
 
-		containerEl.empty();
+    this.plugin = plugin;
+  }
 
-		new Setting(containerEl)
-			.setName('Settings #1')
-			.setDesc("It's a secret")
-			.addText((text) =>
-				text
-					.setPlaceholder('Enter your secret')
-					.setValue(this.plugin.settings.mySetting)
-					.onChange(async (value) => {
-						this.plugin.settings.mySetting = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-	}
+  public display(): void {
+    const { containerEl } = this;
+
+    containerEl.empty();
+
+    new Setting(containerEl)
+      .setName('Settings #1')
+      .setDesc('It\'s a secret')
+      .addText(text =>
+        text
+          .setPlaceholder('Enter your secret')
+          .setValue(this.plugin.settings.mySetting)
+          .onChange(async (value) => {
+            this.plugin.settings.mySetting = value;
+            await this.plugin.saveSettings();
+          }),
+      );
+  }
+
+  public getSettingDefinitions(): SettingDefinition[] {
+    return [
+      {
+        control: {
+          key: 'mySetting',
+          placeholder: 'Enter your secret',
+          type: 'text',
+        },
+        description: 'It\'s a secret',
+        name: 'Settings #1',
+      },
+    ];
+  }
 }

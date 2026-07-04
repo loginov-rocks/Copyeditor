@@ -1,11 +1,11 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
-	"version": "1.0.0",
-	"minAppVersion": "1.0.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
-	"isDesktopOnly": false
+  "id": "copyeditor",
+  "name": "Copyeditor",
+  "version": "0.1.0",
+  "minAppVersion": "1.0.0",
+  "description": "Copyeditor plugin for Obsidian",
+  "author": "Danila Loginov",
+  "authorUrl": "https://loginov.rocks",
+  "fundingUrl": "https://obsidian.md/pricing",
+  "isDesktopOnly": false
 }
