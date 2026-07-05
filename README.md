@@ -90,3 +90,11 @@ If you have multiple URLs, you can also do:
 ## API Documentation
 
 See https://docs.obsidian.md
+
+## TODOs
+
+1. Add checkbox setting in plugin config to strip frontmatter from markdown files when used in the context.
+
+Written with assistance from Claude Sonnet 5 at High/Extra effort.
+
+https://en.wikipedia.org/wiki/Copy_editing
