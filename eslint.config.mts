@@ -10,6 +10,7 @@ export default defineConfig([
   globalIgnores([
     'node_modules',
     'dist',
+    'coverage',
     'esbuild.config.mjs',
     'version-bump.mjs',
     'versions.json',
@@ -50,6 +51,7 @@ export default defineConfig([
       // TODO: Remove and fix the following before release.
       'obsidianmd/no-unsupported-api': 'off',
       'obsidianmd/settings-tab/no-problematic-settings-headings': 'off',
+      'obsidianmd/settings-tab/prefer-setting-definitions': 'off',
       'obsidianmd/ui/sentence-case': 'off',
     },
   },

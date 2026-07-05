@@ -6,10 +6,12 @@ import {
 
 import type { CopyeditorPlugin } from '../CopyeditorPlugin';
 
-import { Client, type ModelEffort, type PromptOptions } from '../services/Client';
+import { Client, type PromptOptions } from '../services/Client';
 import { Copyeditor, type RevisionResult } from '../services/Copyeditor';
 import { FileSuggest } from './FileSuggest';
 import { PromptOptionsPanel } from './PromptOptionsPanel';
+import { RevisionViewFrontmatter } from './RevisionViewFrontmatter';
+import { RevisionViewScope, type RevisionViewScopeKind, type RevisionViewScopeResult } from './RevisionViewScope';
 
 export const VIEW_TYPE_REVISION = 'copyeditor-revision-view';
 
@@ -22,11 +24,6 @@ export interface RevisionSelection {
   selection: string;
   startOffset: number;
   styleCardPath: string;
-}
-
-interface Bounds {
-  end: number;
-  start: number;
 }
 
 /**
@@ -89,39 +86,12 @@ export class RevisionView extends ItemView {
       content: editor.getValue(),
       endOffset: editor.posToOffset(editor.getCursor('to')),
       path: file?.path ?? '',
-      promptOptions: RevisionView.getFrontmatterPromptOptions(frontmatter),
+      promptOptions: new RevisionViewFrontmatter(frontmatter).promptOptions(),
       revisionPromptPath: RevisionView.resolveExistingPath(app, frontmatter?.copyeditor_revisionPromptPath),
       selection,
       startOffset: editor.posToOffset(editor.getCursor('from')),
       styleCardPath: RevisionView.resolveExistingPath(app, frontmatter?.copyeditor_styleCardPath),
     };
-  }
-
-  /**
-   * Reads the `copyeditor_*` prompt option overrides out of frontmatter, so a note that was
-   * produced by (or previously revised with) this plugin re-applies the same model/effort/
-   * maxTokens/thinking the next time it's sent to Revision.
-   */
-  private static getFrontmatterPromptOptions(
-    frontmatter: Record<string, unknown> | undefined,
-  ): Partial<PromptOptions> {
-    const promptOptions: Partial<PromptOptions> = {};
-    const effort = frontmatter?.copyeditor_effort;
-
-    if (typeof effort === 'string' && Client.MODEL_EFFORTS.includes(effort as ModelEffort)) {
-      promptOptions.effort = effort as ModelEffort;
-    }
-    if (typeof frontmatter?.copyeditor_maxTokens === 'number') {
-      promptOptions.maxTokens = frontmatter.copyeditor_maxTokens;
-    }
-    if (typeof frontmatter?.copyeditor_model === 'string') {
-      promptOptions.model = frontmatter.copyeditor_model;
-    }
-    if (typeof frontmatter?.copyeditor_thinking === 'boolean') {
-      promptOptions.thinking = frontmatter.copyeditor_thinking;
-    }
-
-    return promptOptions;
   }
 
   /**
@@ -174,75 +144,25 @@ export class RevisionView extends ItemView {
   }
 
   /**
-   * Computes the current scope (whichever of Include Paragraph/Section/Full is active) and wraps
-   * the selection within it in `<selection>` tags. Returns null if none of those toggles are on.
+   * Maps the current Include Paragraph/Section/Full toggles to a scope kind and delegates the
+   * offset math to RevisionViewScope. Returns null if none of those toggles are on.
    */
-  private computeScope(revisionSelection: RevisionSelection): null | { bounds: Bounds; wrapped: string } {
-    const { content, endOffset, startOffset } = revisionSelection;
-
-    const bounds = this.includeFull
-      ? { end: content.length, start: 0 }
+  private computeScope(revisionSelection: RevisionSelection): null | RevisionViewScopeResult {
+    const kind: null | RevisionViewScopeKind = this.includeFull
+      ? 'full'
       : this.includeSection
-        ? this.getSectionBounds(content, startOffset)
+        ? 'section'
         : this.includeParagraph
-          ? this.getParagraphBounds(content, startOffset, endOffset)
+          ? 'paragraph'
           : null;
 
-    if (!bounds) {
+    if (!kind) {
       return null;
     }
 
-    return { bounds, wrapped: this.wrapRange(content, bounds, revisionSelection) };
-  }
+    const { content, endOffset, startOffset } = revisionSelection;
 
-  /**
-   * Finds the paragraph around the selection: the text between the nearest blank lines on either
-   * side (or the start/end of the document).
-   */
-  private getParagraphBounds(content: string, startOffset: number, endOffset: number): Bounds {
-    const breakBefore = content.lastIndexOf('\n\n', startOffset);
-    const start = breakBefore === -1 ? 0 : breakBefore + 2;
-
-    const breakAfter = content.indexOf('\n\n', endOffset);
-    const end = breakAfter === -1 ? content.length : breakAfter;
-
-    return { end, start };
-  }
-
-  /**
-   * Finds the Markdown section around the selection: from the nearest heading at or before the
-   * selection down to the very next heading of any level (or the start/end of the document if
-   * there's no such heading). Deliberately doesn't nest by heading level, so a section under an H1
-   * stops at the next H2 instead of swallowing the whole subsection tree. If the selection comes
-   * before any heading (a preamble), the section runs from the start of the document to the first
-   * heading instead of swallowing the rest of the document.
-   */
-  private getSectionBounds(content: string, startOffset: number): Bounds {
-    const headingPattern = /^#{1,6}\s+.*$/gm;
-
-    let firstHeadingAfter: null | number = null;
-    let lastHeadingIndex = -1;
-    let match: null | RegExpExecArray;
-
-    while ((match = headingPattern.exec(content))) {
-      if (match.index > startOffset) {
-        firstHeadingAfter = match.index;
-        break;
-      }
-
-      lastHeadingIndex = match.index;
-    }
-
-    if (lastHeadingIndex === -1) {
-      return { end: firstHeadingAfter ?? content.length, start: 0 };
-    }
-
-    headingPattern.lastIndex = lastHeadingIndex + 1;
-
-    const nextMatch = headingPattern.exec(content);
-    const end = nextMatch ? nextMatch.index : content.length;
-
-    return { end, start: lastHeadingIndex };
+    return new RevisionViewScope(content, startOffset, endOffset).select(kind);
   }
 
   private async handleGenerate(): Promise<void> {
@@ -292,7 +212,7 @@ export class RevisionView extends ItemView {
         promptOptions: this.promptOptions,
         revisionPrompt,
         revisionPromptPath: this.promptPath,
-        scope: scopeResult?.wrapped,
+        scope: scopeResult?.text,
         selection: revisionSelection.selection,
         styleCard,
         styleCardPath: this.styleCardPath || undefined,
@@ -403,7 +323,7 @@ export class RevisionView extends ItemView {
       contentEl.createEl('h3', { text: `Scope (${String(bounds.end - bounds.start)} chars)` });
 
       const scopeEl = contentEl.createDiv();
-      const renderable = scopeResult.wrapped.replace('<selection>', '<mark>').replace('</selection>', '</mark>');
+      const renderable = scopeResult.text.replace('<selection>', '<mark>').replace('</selection>', '</mark>');
 
       await MarkdownRenderer.render(this.app, renderable, scopeEl, path, this);
       this.highlightSelectionTags(scopeEl);
@@ -541,19 +461,5 @@ export class RevisionView extends ItemView {
 
       await MarkdownRenderer.render(this.app, result.thinkingContent, thinkingEl, '', this);
     }
-  }
-
-  /**
-   * Slices `content` down to `bounds` and wraps the selection within that slice in `<selection>`
-   * tags.
-   */
-  private wrapRange(content: string, bounds: Bounds, revisionSelection: RevisionSelection): string {
-    const { endOffset, startOffset } = revisionSelection;
-    const text = content.slice(bounds.start, bounds.end);
-    const relativeStart = startOffset - bounds.start;
-    const relativeEnd = endOffset - bounds.start;
-
-    return `${text.slice(0, relativeStart)}<selection>${text.slice(relativeStart, relativeEnd)}`
-      + `</selection>${text.slice(relativeEnd)}`;
   }
 }

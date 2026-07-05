@@ -1,0 +1,8 @@
+{
+  "collectCoverageFrom": [
+    "<rootDir>/src/**/*.ts"
+  ],
+  "moduleNameMapper": {
+    "^obsidian$": "<rootDir>/test/obsidian.ts"
+  }
+}
