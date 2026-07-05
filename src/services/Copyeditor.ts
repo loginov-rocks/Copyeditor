@@ -2,6 +2,12 @@ import { parseYaml, stringifyYaml } from 'obsidian';
 
 import { Client, type PromptOptions } from './Client';
 
+export interface RevisionResult {
+  content: string;
+  estimatedCost: null | number;
+  thinkingContent: string;
+}
+
 export interface StyleCardResult {
   content: string;
   estimatedCost: null | number;
@@ -17,13 +23,30 @@ interface Reference {
   path: string;
 }
 
+interface RevisionOptions {
+  includeEstimatedCost: boolean;
+  includePromptOptions: boolean;
+  includeRevisionPromptPath: boolean;
+  includeStyleCardPath: boolean;
+  promptOptions: PromptOptions;
+  revisionPrompt: string;
+  revisionPromptPath: string;
+  scope?: string;
+  selection: string;
+  styleCard?: string;
+  styleCardPath?: string;
+  userInstructions?: string;
+}
+
 interface StyleCardOptions {
   includeEstimatedCost: boolean;
   includePromptOptions: boolean;
   includeReferences: boolean;
+  includeUserPromptPath: boolean;
   promptOptions: PromptOptions;
   references: Reference[];
   userPrompt: string;
+  userPromptPath: string;
 }
 
 /**
@@ -37,8 +60,74 @@ export class Copyeditor {
     this.client = client;
   }
 
+  public async generateRevision({
+    includeEstimatedCost, includePromptOptions, includeRevisionPromptPath, includeStyleCardPath, promptOptions,
+    revisionPrompt, revisionPromptPath, scope, selection, styleCard, styleCardPath, userInstructions,
+  }: RevisionOptions): Promise<RevisionResult> {
+    if (!selection) {
+      throw new Error('A selection is required to generate a revision!');
+    }
+
+    const selectionTag = /<selection\s*\/\s*>/g;
+
+    if (!selectionTag.test(revisionPrompt)) {
+      throw new Error('Revision prompt must include a <selection /> tag!');
+    }
+
+    let prompt = revisionPrompt.replace(selectionTag, `<selection>\n${selection}\n</selection>`);
+
+    if (scope) {
+      prompt = prompt.replace(/<scope\s*\/\s*>/g, `<scope>\n${scope}\n</scope>`);
+    }
+
+    if (styleCard) {
+      prompt = prompt.replace(/<style-card\s*\/\s*>/g, `<style-card>\n${styleCard}\n</style-card>`);
+    }
+
+    if (userInstructions) {
+      prompt = prompt.replace(/<instructions\s*\/\s*>/g, `<instructions>\n${userInstructions}\n</instructions>`);
+    }
+
+    const result = await this.client.prompt(prompt, promptOptions);
+
+    let content = result.textBlocks.join('');
+
+    const frontmatter: Record<string, boolean | number | string> = {};
+    if (includePromptOptions && promptOptions.effort !== undefined) {
+      frontmatter.copyeditor_effort = promptOptions.effort;
+    }
+    if (includeEstimatedCost && result.estimatedCost !== null) {
+      frontmatter.copyeditor_estimatedCost = result.estimatedCost;
+    }
+    if (includePromptOptions && promptOptions.maxTokens) {
+      frontmatter.copyeditor_maxTokens = promptOptions.maxTokens;
+    }
+    if (includePromptOptions && promptOptions.model) {
+      frontmatter.copyeditor_model = promptOptions.model;
+    }
+    if (includePromptOptions && promptOptions.thinking !== undefined) {
+      frontmatter.copyeditor_thinking = promptOptions.thinking;
+    }
+    if (includeRevisionPromptPath) {
+      frontmatter.copyeditor_revisionPromptPath = revisionPromptPath;
+    }
+    if (includeStyleCardPath && styleCardPath) {
+      frontmatter.copyeditor_styleCardPath = styleCardPath;
+    }
+    if (Object.keys(frontmatter).length > 0) {
+      content = this.upsertFrontmatter(content, frontmatter);
+    }
+
+    return {
+      content,
+      estimatedCost: result.estimatedCost,
+      thinkingContent: result.thinkingBlocks.join('\n\n'),
+    };
+  }
+
   public async generateStyleCard({
-    includeEstimatedCost, includePromptOptions, includeReferences, promptOptions, references, userPrompt,
+    includeEstimatedCost, includePromptOptions, includeReferences, includeUserPromptPath, promptOptions, references,
+    userPrompt, userPromptPath,
   }: StyleCardOptions): Promise<StyleCardResult> {
     if (references.length === 0) {
       throw new Error('At least one reference is required to generate a style card!');
@@ -74,6 +163,9 @@ export class Copyeditor {
     }
     if (includePromptOptions && promptOptions.thinking !== undefined) {
       frontmatter.copyeditor_thinking = promptOptions.thinking;
+    }
+    if (includeUserPromptPath) {
+      frontmatter.copyeditor_userPromptPath = userPromptPath;
     }
     if (Object.keys(frontmatter).length > 0) {
       content = this.upsertFrontmatter(content, frontmatter);

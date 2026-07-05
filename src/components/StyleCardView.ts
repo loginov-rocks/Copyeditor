@@ -20,6 +20,7 @@ export class StyleCardView extends ItemView {
   private includeEstimatedCost = true;
   private includePromptOptions = true;
   private includeReferences = true;
+  private includeUserPromptPath = true;
   private isGenerating = false;
   private isRendering = false;
   private readonly plugin: CopyeditorPlugin;
@@ -113,9 +114,11 @@ export class StyleCardView extends ItemView {
         includeEstimatedCost: this.includeEstimatedCost,
         includePromptOptions: this.includePromptOptions,
         includeReferences: this.includeReferences,
+        includeUserPromptPath: this.includeUserPromptPath,
         promptOptions: this.promptOptions,
         references,
         userPrompt: prompt,
+        userPromptPath: this.promptPath,
       });
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -234,6 +237,15 @@ export class StyleCardView extends ItemView {
       .setDesc('Append a "## References" section with links to the reference files used')
       .addToggle(toggle => toggle.setValue(this.includeReferences).onChange((value) => {
         this.includeReferences = value;
+      }));
+
+    this.includeUserPromptPath = this.plugin.settings.styleCard.includeUserPromptPath;
+
+    new Setting(contentEl)
+      .setName('Include User Prompt Path')
+      .setDesc('Include the path to the prompt file used in Frontmatter')
+      .addToggle(toggle => toggle.setValue(this.includeUserPromptPath).onChange((value) => {
+        this.includeUserPromptPath = value;
       }));
 
     new Setting(contentEl)

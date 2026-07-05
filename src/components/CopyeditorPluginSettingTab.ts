@@ -43,6 +43,48 @@ export class CopyeditorPluginSettingTab extends PluginSettingTab {
       },
     }).render();
 
+    new Setting(containerEl).setName('Revision').setHeading();
+
+    new Setting(containerEl)
+      .setName('Include Estimated Cost')
+      .setDesc('Include the estimated cost in Frontmatter')
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.revision.includeEstimatedCost).onChange(async (value) => {
+          this.plugin.settings.revision.includeEstimatedCost = value;
+          await this.plugin.saveSettings();
+        }),
+      );
+
+    new Setting(containerEl)
+      .setName('Include Prompt Options')
+      .setDesc('Include the model, effort, thinking, and max tokens used in Frontmatter')
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.revision.includePromptOptions).onChange(async (value) => {
+          this.plugin.settings.revision.includePromptOptions = value;
+          await this.plugin.saveSettings();
+        }),
+      );
+
+    new Setting(containerEl)
+      .setName('Include Revision Prompt Path')
+      .setDesc('Include the path to the revision prompt file used in Frontmatter')
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.revision.includeRevisionPromptPath).onChange(async (value) => {
+          this.plugin.settings.revision.includeRevisionPromptPath = value;
+          await this.plugin.saveSettings();
+        }),
+      );
+
+    new Setting(containerEl)
+      .setName('Include Style Card Path')
+      .setDesc('Include the path to the style card file used in Frontmatter')
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.revision.includeStyleCardPath).onChange(async (value) => {
+          this.plugin.settings.revision.includeStyleCardPath = value;
+          await this.plugin.saveSettings();
+        }),
+      );
+
     new Setting(containerEl).setName('Style Card').setHeading();
 
     new Setting(containerEl)
@@ -72,5 +114,15 @@ export class CopyeditorPluginSettingTab extends PluginSettingTab {
         this.plugin.settings.styleCard.includeReferences = value;
         await this.plugin.saveSettings();
       }));
+
+    new Setting(containerEl)
+      .setName('Include User Prompt Path')
+      .setDesc('Include the path to the prompt file used in Frontmatter')
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.styleCard.includeUserPromptPath).onChange(async (value) => {
+          this.plugin.settings.styleCard.includeUserPromptPath = value;
+          await this.plugin.saveSettings();
+        }),
+      );
   }
 }

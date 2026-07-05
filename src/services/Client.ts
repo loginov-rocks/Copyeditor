@@ -47,7 +47,7 @@ export class Client {
     xhigh: 'Extra',
   };
 
-  private static readonly MODEL_EFFORTS: ModelEffort[] = ['low', 'medium', 'high', 'xhigh', 'max'];
+  public static readonly MODEL_EFFORTS: ModelEffort[] = ['low', 'medium', 'high', 'xhigh', 'max'];
 
   /**
    * Best-effort snapshot of published pricing, matched by model id prefix (model ids returned by
